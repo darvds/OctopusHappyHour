@@ -1,0 +1,75 @@
+# Add to configuration.yaml, then restart Home Assistant (or reload pyscript).
+# Copy pyscript/apps/octopus_happy_hour.py to <config>/pyscript/apps/octopus_happy_hour.py
+#
+# Can share the pyscript: block with solis_ev_follow / solis_power_down /
+# cosy_wc_tuner. This app only touches one Solis *charge* slot (slot 3 by
+# default; EV-Follow uses 1 and 2, Power Down uses a discharge slot).
+
+pyscript:
+  hass_is_global: true
+  allow_all_imports: true
+  apps:
+    octopus_happy_hour:
+      # --- Octopus ---
+      # Disabled by default in the Octopus integration: enable it first.
+      power_up_events_entity: event.octopus_energy_a_XXXXXXXX_octoplus_power_up_events
+      auto_join: false           # true: book available Weekend Happy Hours while you have tokens
+      join_selection: earliest   # or latest
+      # weekend_happy_hours_entity: sensor.octopus_energy_a_XXXXXXXX_octoplus_weekend_happy_hours  # derived by default
+
+      # --- Notifications ---
+      notify_service: notify.mobile_app_your_phone   # or a list of several
+      notify_scheduled: true     # when a new happy hour is booked
+      notify_end: true           # when it finishes
+      # notify_data:             # extra data for the companion app, e.g. iOS time-sensitive
+      #   push:
+      #     interruption-level: time-sensitive
+
+      # --- Battery (Solis) - same secrets as solis_ev_follow ---
+      key_id: !secret solis_key_id
+      secret: !secret solis_secret
+      username: !secret solis_username
+      password: !secret solis_password
+      plantId: !secret solis_plant_id
+      # inverter_sn: !secret solis_inverter_sn   # only needed with multiple inverters
+      battery_charge: true
+      charge_slot: 3             # Solis charge slot driven by this app (1-6)
+      charge_current: 100        # amps; the inverter caps it at its own maximum
+      charge_soc: 100            # charge up to this SOC
+      prepare_minutes: 5         # write the slot this long before the start
+
+      # --- Hot water (Cosy) ---
+      heat_pump_id: 00_1e_5e_09_02_ab_cd   # -> water_heater.octopus_energy_heat_pump_<id>
+      # water_heater_entity: water_heater.octopus_energy_heat_pump_00_1e_5e_09_02_ab_cd
+      hot_water_boost: true
+      hot_water_temperature: 50
+
+      # --- Anything else that should use the free power ---
+      # Any HA action: scripts, switches, climate, ... Run at the start / end.
+      # start_actions:
+      #   - service: switch.turn_on
+      #     target:
+      #       entity_id: switch.hypervolt_charging
+      #   - service: script.turn_on
+      #     target:
+      #       entity_id: script.run_dishwasher
+      #   - service: octopus_energy.boost_heat_pump_zone
+      #     target:
+      #       entity_id: climate.octopus_energy_heat_pump_00_1e_5e_09_02_ab_cd_zone_1
+      #     data:
+      #       hours: 1
+      #       minutes: 0
+      #       target_temperature: 22
+      # end_actions:
+      #   - service: switch.turn_off
+      #     target:
+      #       entity_id: switch.hypervolt_charging
+
+      # --- Behaviour (defaults shown) ---
+      inverter_timezone: Europe/London
+      sync_inverter_time: true
+      startup_delay_seconds: 120 # let EV-Follow initialise its slots first
+
+      # Start with this on: logs what it *would* do (inverter, boost, actions)
+      # without changing anything. Notifications are still sent.
+      diagnostics_only: true
